@@ -263,6 +263,304 @@ textarea:focus {
   grid-template-columns: minmax(340px, 0.92fr) minmax(320px, 0.72fr);
 }
 
+.event-page {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #090909;
+  color: var(--poster-text);
+  font-family: var(--body-font);
+}
+
+.event-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.32), rgba(0, 0, 0, 0.62) 54%, rgba(0, 0, 0, 0.84)),
+    var(--poster-image);
+  background-size: cover;
+  background-position: center;
+}
+
+.event-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(18px) saturate(1.18);
+  background: rgba(0, 0, 0, 0.34);
+}
+
+.event-phone {
+  position: relative;
+  z-index: 1;
+  width: min(430px, 100%);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 14px 16px 34px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.52) 64%, rgba(0, 0, 0, 0.72)),
+    var(--poster-image);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
+}
+
+.event-brandbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.event-brand-button {
+  color: var(--poster-text);
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.3);
+}
+
+.event-admin-link {
+  min-height: 34px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 12px;
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--poster-text);
+  font-weight: 800;
+  backdrop-filter: blur(12px);
+}
+
+.event-hero {
+  display: grid;
+  gap: 10px;
+}
+
+.event-kicker {
+  margin: 0;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.84);
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.38);
+  font-size: 13px;
+}
+
+.event-hero h1 {
+  margin: 0;
+  font-family: var(--title-font);
+  font-size: clamp(40px, 12vw, 58px);
+  line-height: 0.98;
+  letter-spacing: 0;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  text-shadow: 0 3px 26px rgba(0, 0, 0, 0.46);
+}
+
+.event-art-card {
+  width: 100%;
+  aspect-ratio: 1 / 0.58;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 75% 20%, rgba(255, 255, 255, 0.22), transparent 26%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent), #fff 16%), color-mix(in srgb, var(--accent), #111 28%));
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15), 0 24px 70px rgba(0, 0, 0, 0.24);
+  overflow: hidden;
+}
+
+.event-art-word {
+  color: rgba(12, 13, 14, 0.86);
+  font-size: clamp(46px, 14vw, 74px);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: 0;
+  transform: rotate(-2deg);
+}
+
+.event-info-stack {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.event-date-block {
+  display: grid;
+  gap: 1px;
+  padding: 0 2px 3px;
+}
+
+.event-date-block strong {
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+.event-date-block span {
+  color: rgba(255, 255, 255, 0.74);
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.event-info-row {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.event-info-icon {
+  width: 26px;
+  height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 14px;
+}
+
+.event-info-row small,
+.event-info-row em {
+  display: block;
+  color: rgba(255, 255, 255, 0.66);
+  font-style: normal;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.event-info-row strong {
+  display: block;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.avatar-stack {
+  display: flex;
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+
+.avatar-stack i {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  margin-left: -7px;
+  border-radius: 50%;
+  border: 2px solid rgba(10, 10, 10, 0.82);
+  background: linear-gradient(135deg, #fff2a8, #7ff0d4 55%, #f59dff);
+  color: #151515;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.event-description {
+  margin: 4px 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.7;
+  font-weight: 700;
+  max-height: 3.4em;
+  overflow: hidden;
+}
+
+.event-code-card {
+  max-width: none;
+  margin-top: 2px;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--poster-text);
+  backdrop-filter: blur(16px);
+}
+
+.event-code-card span {
+  color: rgba(255, 255, 255, 0.68);
+}
+
+.event-code-card strong {
+  color: rgba(255, 255, 255, 0.96);
+}
+
+.event-share-row {
+  gap: 8px;
+}
+
+.event-share-row button {
+  flex: 1 1 118px;
+  min-height: 38px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.92);
+  border-color: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(14px);
+}
+
+.event-rsvp-card {
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #171717;
+  box-shadow: 0 20px 54px rgba(0, 0, 0, 0.22);
+}
+
+.event-segmented button.selected {
+  background: var(--accent);
+  color: #111;
+}
+
+.preview-event-page {
+  min-height: auto;
+  width: min(100%, 360px);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #111;
+  box-shadow: 0 26px 76px rgba(18, 24, 30, 0.22);
+}
+
+.preview-event-page::before,
+.preview-event-page::after {
+  content: none;
+}
+
+.preview-event-phone {
+  width: 100%;
+  min-height: auto;
+  aspect-ratio: 9 / 16;
+  padding: 12px;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+.preview-event-phone .event-brandbar {
+  margin-bottom: 18px;
+}
+
+.preview-event-phone .event-hero h1 {
+  font-size: 40px;
+}
+
+.preview-event-phone .event-art-card {
+  aspect-ratio: 1 / 0.5;
+}
+
+.preview-event-phone .event-info-stack {
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.preview-event-phone .event-info-row {
+  min-height: 42px;
+  padding: 5px 0;
+}
+
 .arrival-shell {
   min-height: 100vh;
   width: 100%;

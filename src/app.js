@@ -18,6 +18,7 @@ const defaultEvent = {
   password: "",
   title: "금요일 밤에 모여요",
   subtitle: "오랜만에 얼굴 보는 날",
+  hostName: "파티피플",
   date: "2026-06-19",
   time: "19:30",
   placeName: "홍대 어딘가",
@@ -72,6 +73,21 @@ function formatTime(timeValue) {
 
 function getTheme(themeId) {
   return themes.find((theme) => theme.id === themeId) || themes[0];
+}
+
+function getPosterWord(title) {
+  const words = String(title || "party").trim().split(/\s+/).filter(Boolean);
+  return words.length > 0 ? words[0].slice(0, 8) : "party";
+}
+
+function getInitial(name) {
+  return String(name || "?").trim().slice(0, 1).toUpperCase() || "?";
+}
+
+function getLocationUrl(event) {
+  if (event.placeUrl) return event.placeUrl;
+  const query = encodeURIComponent([event.placeName, event.address].filter(Boolean).join(" "));
+  return `https://map.naver.com/p/search/${query || encodeURIComponent("파티 장소")}`;
 }
 
 function App() {
@@ -168,6 +184,7 @@ function CreateScreen({ events, updateEvent }) {
       h("form", { className: "editor-panel", onSubmit: submit },
         h(Field, { label: "모임 이름" }, h("input", { value: event.title, onChange: (e) => setField("title", e.target.value), maxLength: 36 })),
         h(Field, { label: "한 줄 소개" }, h("input", { value: event.subtitle, onChange: (e) => setField("subtitle", e.target.value), maxLength: 42 })),
+        h(Field, { label: "주선자 이름" }, h("input", { value: event.hostName, onChange: (e) => setField("hostName", e.target.value), placeholder: "예: 민수", maxLength: 24 })),
         h("div", { className: "two-col" },
           h(Field, { label: "날짜" }, h("input", { type: "date", value: event.date, onChange: (e) => setField("date", e.target.value) })),
           h(Field, { label: "시간" }, h("input", { type: "time", value: event.time, onChange: (e) => setField("time", e.target.value) }))
@@ -189,7 +206,7 @@ function CreateScreen({ events, updateEvent }) {
         h("button", { className: "primary-button wide-button", type: "submit" }, "초대장 저장")
       ),
       h("aside", { className: "preview-panel" },
-        h(InvitePoster, { event, compact: false }),
+        h(CompactEventPreview, { event }),
         h("p", { className: "code-note" }, `초대코드 ${event.code}`)
       )
     )
@@ -230,28 +247,81 @@ function EventScreen({ event, updateEvent }) {
     alert("참석 여부가 저장됐어요.");
   };
 
-  return h("main", { className: "app-shell event-shell" },
-    h(Header, { title: "초대장", adminCode: event.code }),
-    h("div", { className: "event-layout" },
-      h("section", { className: "poster-column" },
-        h(InvitePoster, { event }),
-        h("div", { className: "invite-code-card" }, h("span", null, "초대코드"), h("strong", null, event.code)),
-        h("div", { className: "share-row" },
-          h("button", { onClick: () => downloadStoryImage(event) }, "스토리 이미지 저장"),
-          h("button", { onClick: () => shareStoryImage(event) }, "이미지 공유"),
-          h("button", { onClick: () => copyText(location.href) }, "링크 복사"),
-          event.placeUrl && h("button", { onClick: () => window.open(event.placeUrl, "_blank") }, "네이버지도")
+  const theme = getTheme(event.themeId);
+  const yesGuests = (event.rsvps || []).filter((rsvp) => rsvp.status === "yes");
+  const totalGoing = counts.yes;
+  const locationUrl = getLocationUrl(event);
+
+  return h("main", {
+    className: `event-page ${theme.className}`,
+    style: {
+      "--poster-image": `url("${theme.cssImage}")`,
+      "--poster-text": theme.textColor,
+      "--accent": theme.accent,
+      "--title-font": theme.titleFont,
+      "--body-font": theme.bodyFont
+    }
+  },
+    h("div", { className: "event-backdrop" }),
+    h("div", { className: "event-phone" },
+      h("header", { className: "event-brandbar" },
+        h("button", { className: "brand-button event-brand-button", onClick: () => navigate("/") },
+          h("span", { className: "brand-mark small" }, "피"),
+          h("span", null, "파티피플")
+        ),
+        h("button", { className: "event-admin-link", onClick: () => navigate(`/admin/${event.code}`) }, "관리")
+      ),
+      h("section", { className: "event-hero" },
+        h("p", { className: "event-kicker" }, event.subtitle || "초대합니다"),
+        h("h1", null, event.title || "이름 없는 모임"),
+        h("div", { className: "event-art-card" },
+          h("div", { className: "event-art-word" }, getPosterWord(event.title))
         )
       ),
-      h("section", { className: "rsvp-panel" },
-        h("div", { className: "count-row" },
-          h(CountPill, { label: "참석", value: counts.yes }),
-          h(CountPill, { label: "미정", value: counts.maybe }),
-          h(CountPill, { label: "불참", value: counts.no })
+      h("section", { className: "event-info-stack" },
+        h("div", { className: "event-date-block" },
+          h("strong", null, formatDate(event.date)),
+          h("span", null, formatTime(event.time))
         ),
+        h("button", { className: "event-info-row", type: "button", onClick: () => copyText("파티피플") },
+          h("span", { className: "event-info-icon" }, "★"),
+          h("span", null,
+            h("small", null, "Hosted by"),
+            h("strong", null, event.hostName || "파티피플")
+          )
+        ),
+        h("button", { className: "event-info-row", type: "button", onClick: () => window.open(locationUrl, "_blank") },
+          h("span", { className: "event-info-icon" }, "⌖"),
+          h("span", null,
+            h("small", null, "Location"),
+            h("strong", null, event.placeName || "장소 미정"),
+            h("em", null, event.address || "주소 미정")
+          )
+        ),
+        h("div", { className: "event-info-row attendees-row" },
+          h("span", { className: "event-info-icon" }, "✓"),
+          h("span", null,
+            h("small", null, "Guests"),
+            h("strong", null, `${totalGoing}명 참석 예정`),
+            h("em", null, `미정 ${counts.maybe}명 · 불참 ${counts.no}명`)
+          ),
+          h("div", { className: "avatar-stack" },
+            yesGuests.slice(0, 4).map((rsvp) => h("i", { key: rsvp.name }, getInitial(rsvp.name))),
+            yesGuests.length === 0 && h("i", null, "?")
+          )
+        ),
+        h("div", { className: "share-row event-share-row" },
+          h("button", { onClick: () => downloadStoryImage(event) }, "스토리 저장"),
+          h("button", { onClick: () => shareStoryImage(event) }, "이미지 공유"),
+          h("button", { onClick: () => copyText(location.href) }, "링크 복사")
+        ),
+        h("p", { className: "event-description" }, event.description || "곧 만나요."),
+        h("div", { className: "invite-code-card event-code-card" }, h("span", null, "초대코드"), h("strong", null, event.code))
+      ),
+      h("section", { className: "event-rsvp-card" },
         h("form", { onSubmit: submit, className: "rsvp-form" },
           h(Field, { label: "이름" }, h("input", { value: name, onChange: (e) => setName(e.target.value), placeholder: "친구들이 알아볼 이름" })),
-          h("div", { className: "segmented" }, statusButton("yes", "참석", status, setStatus), statusButton("maybe", "미정", status, setStatus), statusButton("no", "불참", status, setStatus)),
+          h("div", { className: "segmented event-segmented" }, statusButton("yes", "참석", status, setStatus), statusButton("maybe", "미정", status, setStatus), statusButton("no", "불참", status, setStatus)),
           h(Field, { label: "동반 인원" }, h("input", { type: "number", min: "0", max: "9", value: guests, onChange: (e) => setGuests(e.target.value) })),
           h(Field, { label: "한마디" }, h("textarea", { value: message, onChange: (e) => setMessage(e.target.value), placeholder: "선택사항", maxLength: 80 })),
           h("button", { className: "primary-button wide-button", type: "submit" }, "참석 여부 저장")
@@ -271,6 +341,58 @@ function InviteArrivalScreen({ event, onOpen }) {
       h("p", { className: "arrival-meta" }, `${formatDate(event.date)} · ${formatTime(event.time)}`),
       h("button", { className: "arrival-open-button", onClick: onOpen }, "초대장 열기"),
       h("button", { className: "arrival-code-button", onClick: () => copyText(event.code) }, `초대코드 ${event.code}`)
+    )
+  );
+}
+
+function CompactEventPreview({ event }) {
+  const theme = getTheme(event.themeId);
+  const previewEvent = { ...event, rsvps: [{ name: "가", status: "yes", guests: 0 }, { name: "나", status: "maybe", guests: 0 }] };
+  const counts = getCounts(previewEvent.rsvps);
+
+  return h("div", {
+    className: `event-page preview-event-page ${theme.className}`,
+    style: {
+      "--poster-image": `url("${theme.cssImage}")`,
+      "--poster-text": theme.textColor,
+      "--accent": theme.accent,
+      "--title-font": theme.titleFont,
+      "--body-font": theme.bodyFont
+    }
+  },
+    h("div", { className: "event-phone preview-event-phone" },
+      h("header", { className: "event-brandbar" },
+        h("div", { className: "brand-button event-brand-button" },
+          h("span", { className: "brand-mark small" }, "피"),
+          h("span", null, "파티피플")
+        ),
+        h("span", { className: "event-admin-link" }, "관리")
+      ),
+      h("section", { className: "event-hero" },
+        h("p", { className: "event-kicker" }, event.subtitle || "초대합니다"),
+        h("h1", null, event.title || "이름 없는 모임"),
+        h("div", { className: "event-art-card" }, h("div", { className: "event-art-word" }, getPosterWord(event.title)))
+      ),
+      h("section", { className: "event-info-stack" },
+        h("div", { className: "event-date-block" }, h("strong", null, formatDate(event.date)), h("span", null, formatTime(event.time))),
+        h("div", { className: "event-info-row" },
+          h("span", { className: "event-info-icon" }, "★"),
+          h("span", null, h("small", null, "Hosted by"), h("strong", null, event.hostName || "파티피플"))
+        ),
+        h("div", { className: "event-info-row" },
+          h("span", { className: "event-info-icon" }, "⌖"),
+          h("span", null, h("small", null, "Location"), h("strong", null, event.placeName || "장소 미정"), h("em", null, event.address || "주소 미정"))
+        ),
+        h("div", { className: "event-info-row attendees-row" },
+          h("span", { className: "event-info-icon" }, "✓"),
+          h("span", null, h("small", null, "Guests"), h("strong", null, `${counts.yes}명 참석 예정`), h("em", null, `미정 ${counts.maybe}명 · 불참 ${counts.no}명`)),
+          h("div", { className: "avatar-stack" }, h("i", null, "가"), h("i", null, "나"))
+        ),
+        h("div", { className: "share-row event-share-row" },
+          h("button", { type: "button" }, "스토리 저장"),
+          h("button", { type: "button" }, "링크 복사")
+        )
+      )
     )
   );
 }
@@ -458,8 +580,12 @@ async function createStoryBlob(event) {
   canvas.width = 1080;
   canvas.height = 1920;
   const ctx = canvas.getContext("2d");
-  const image = await loadImage(theme.image);
-  drawCoverImage(ctx, image, canvas.width, canvas.height);
+  if (location.protocol === "file:") {
+    drawStoryFallbackBackground(ctx, theme, canvas.width, canvas.height);
+  } else {
+    const image = await loadImage(theme.image);
+    drawCoverImage(ctx, image, canvas.width, canvas.height);
+  }
 
   const darkThemes = ["neon", "home", "serif"];
   const isDark = darkThemes.includes(theme.id);
@@ -484,6 +610,7 @@ async function createStoryBlob(event) {
   drawInfoBlock(ctx, "WHERE", event.placeName || "장소 미정", 90, infoY + 172, textColor, softColor, theme);
   ctx.font = `500 38px ${canvasFont(theme.bodyFont)}`;
   drawWrappedText(ctx, event.address || "주소 미정", 90, infoY + 286, 820, 52, 2, softColor);
+  drawInfoBlock(ctx, "HOSTED BY", event.hostName || "파티피플", 90, infoY + 392, textColor, softColor, theme);
 
   ctx.fillStyle = isDark ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.84)";
   roundRect(ctx, 86, 1650, 908, 142, 30);
@@ -515,10 +642,25 @@ function canvasFont(fontStack) {
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = src;
+    fetch(src)
+      .then((response) => {
+        if (!response.ok) throw new Error(`이미지를 불러올 수 없어요: ${src}`);
+        return response.blob();
+      })
+      .then((blob) => {
+        const image = new Image();
+        const objectUrl = URL.createObjectURL(blob);
+        image.onload = () => {
+          URL.revokeObjectURL(objectUrl);
+          resolve(image);
+        };
+        image.onerror = (error) => {
+          URL.revokeObjectURL(objectUrl);
+          reject(error);
+        };
+        image.src = objectUrl;
+      })
+      .catch(reject);
   });
 }
 
@@ -527,6 +669,26 @@ function drawCoverImage(ctx, image, width, height) {
   const drawWidth = image.width * scale;
   const drawHeight = image.height * scale;
   ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function drawStoryFallbackBackground(ctx, theme, width, height) {
+  const [base, accent, second, paper] = theme.palette;
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, base);
+  gradient.addColorStop(0.48, accent);
+  gradient.addColorStop(1, second || paper || base);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.globalAlpha = 0.26;
+  ctx.fillStyle = paper || "#ffffff";
+  ctx.beginPath();
+  ctx.arc(width * 0.18, height * 0.18, 220, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(width * 0.86, height * 0.72, 310, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
 }
 
 function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines, fillStyle) {
