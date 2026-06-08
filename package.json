@@ -1,0 +1,9 @@
+{
+  "name": "moidam-invite",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Loginless Korean invitation web app prototype.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

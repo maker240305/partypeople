@@ -1,0 +1,565 @@
+const { useEffect, useState } = React;
+const h = React.createElement;
+
+const STORE_KEY = "party-people.events.v1";
+const LEGACY_STORE_KEY = "moidam.events.v1";
+
+const themes = [
+  { id: "neon", name: "Neon Night", label: "파티", titleFont: "'Black Han Sans', Pretendard, sans-serif", bodyFont: "Pretendard, sans-serif", palette: ["#12131f", "#fa3eaa", "#2ae8c8", "#f7f2df"], accent: "#fa3eaa", image: "assets/templates/neon-night.png", cssImage: "../assets/templates/neon-night.png", textColor: "#fff7df", className: "theme-neon" },
+  { id: "birthday", name: "Birthday Pop", label: "생일", titleFont: "'Black Han Sans', Pretendard, sans-serif", bodyFont: "Pretendard, sans-serif", palette: ["#ffefe2", "#f45b69", "#ffd166", "#26547c"], accent: "#f45b69", image: "assets/templates/birthday-pop.png", cssImage: "../assets/templates/birthday-pop.png", textColor: "#242235", className: "theme-birthday" },
+  { id: "home", name: "Cozy Home", label: "홈파티", titleFont: "'Gowun Dodum', Pretendard, sans-serif", bodyFont: "Pretendard, sans-serif", palette: ["#26322f", "#efc38d", "#fbf3df", "#8eb69b"], accent: "#efc38d", image: "assets/templates/cozy-home.png", cssImage: "../assets/templates/cozy-home.png", textColor: "#fff3dc", className: "theme-home" },
+  { id: "campus", name: "Campus Club", label: "동아리", titleFont: "Pretendard, sans-serif", bodyFont: "Pretendard, sans-serif", palette: ["#f4f1e8", "#263b6b", "#e24f3d", "#1f8a70"], accent: "#e24f3d", image: "assets/templates/campus-club.png", cssImage: "../assets/templates/campus-club.png", textColor: "#24345f", className: "theme-campus" },
+  { id: "picnic", name: "Picnic Day", label: "피크닉", titleFont: "'Gowun Dodum', Pretendard, sans-serif", bodyFont: "Pretendard, sans-serif", palette: ["#f8f7ef", "#6aa96f", "#f5b85f", "#32524a"], accent: "#6aa96f", image: "assets/templates/picnic-day.png", cssImage: "../assets/templates/picnic-day.png", textColor: "#2f5148", className: "theme-picnic" },
+  { id: "serif", name: "Soft Formal", label: "모임", titleFont: "'Noto Serif KR', serif", bodyFont: "Pretendard, sans-serif", palette: ["#10151a", "#d7b56d", "#eef1f4", "#6488a6"], accent: "#d7b56d", image: "assets/templates/year-end.png", cssImage: "../assets/templates/year-end.png", textColor: "#f3efe4", className: "theme-serif" }
+];
+
+const defaultEvent = {
+  code: "",
+  password: "",
+  title: "금요일 밤에 모여요",
+  subtitle: "오랜만에 얼굴 보는 날",
+  date: "2026-06-19",
+  time: "19:30",
+  placeName: "홍대 어딘가",
+  address: "서울 마포구",
+  placeUrl: "",
+  description: "편하게 와서 같이 먹고 얘기해요. 늦게 와도 괜찮아요.",
+  themeId: "neon",
+  createdAt: ""
+};
+
+function loadEvents() {
+  try {
+    const saved = localStorage.getItem(STORE_KEY) || localStorage.getItem(LEGACY_STORE_KEY);
+    return JSON.parse(saved) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveEvents(events) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(events));
+}
+
+function randomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+}
+
+function getRoute() {
+  const hash = window.location.hash.replace(/^#/, "") || "/";
+  const parts = hash.split("/").filter(Boolean);
+  return { hash, parts };
+}
+
+function navigate(path) {
+  window.location.hash = path;
+}
+
+function formatDate(dateValue) {
+  if (!dateValue) return "날짜 미정";
+  const date = new Date(`${dateValue}T00:00:00`);
+  return new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "long" }).format(date);
+}
+
+function formatTime(timeValue) {
+  if (!timeValue) return "시간 미정";
+  const [hour, minute] = timeValue.split(":").map(Number);
+  const period = hour >= 12 ? "오후" : "오전";
+  const hour12 = hour % 12 || 12;
+  return `${period} ${hour12}:${String(minute || 0).padStart(2, "0")}`;
+}
+
+function getTheme(themeId) {
+  return themes.find((theme) => theme.id === themeId) || themes[0];
+}
+
+function App() {
+  const [route, setRoute] = useState(getRoute());
+  const [events, setEvents] = useState(loadEvents);
+
+  useEffect(() => {
+    const onHashChange = () => setRoute(getRoute());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  useEffect(() => saveEvents(events), [events]);
+
+  const screen = route.parts[0] || "";
+  const code = route.parts[1] || "";
+
+  const updateEvent = (nextEvent) => {
+    setEvents((prev) => {
+      const exists = prev.some((event) => event.code === nextEvent.code);
+      return exists ? prev.map((event) => event.code === nextEvent.code ? nextEvent : event) : [nextEvent, ...prev];
+    });
+  };
+
+  if (screen === "create") return h(CreateScreen, { events, updateEvent });
+  if (screen === "e") return h(EventScreen, { event: events.find((item) => item.code === code), updateEvent });
+  if (screen === "admin") return h(AdminScreen, { events, updateEvent, code });
+  return h(HomeScreen, { events });
+}
+
+function HomeScreen({ events }) {
+  const [code, setCode] = useState("");
+
+  const join = (event) => {
+    event.preventDefault();
+    if (code.trim()) navigate(`/e/${code.trim().toUpperCase()}`);
+  };
+
+  return h("main", { className: "app-shell home-shell" },
+    h("section", { className: "home-hero" },
+      h("div", { className: "brand-row" }, h("div", { className: "brand-mark" }, "피"), h("span", null, "파티피플")),
+      h("div", { className: "hero-copy" },
+        h("p", { className: "eyebrow" }, "친구들을 초대하세요!"),
+        h("h1", null, "파티에 초대하세요!"),
+        h("p", null, "예쁜 초대장을 만들고 링크 하나로 참석 여부를 받아보세요.")
+      ),
+      h("div", { className: "hero-actions" },
+        h("button", { className: "primary-button", onClick: () => navigate("/create") }, "초대장 만들기"),
+        h("button", { className: "ghost-button", onClick: () => navigate("/admin") }, "관리자 입장")
+      )
+    ),
+    h("section", { className: "entry-band" },
+      h("form", { className: "code-form", onSubmit: join },
+        h("label", null, "초대코드"),
+        h("div", { className: "inline-input" },
+          h("input", { value: code, onChange: (event) => setCode(event.target.value), placeholder: "예: A7K92B", maxLength: 12 }),
+          h("button", { type: "submit" }, "입장")
+        )
+      )
+    ),
+    events.length > 0 && h("section", { className: "recent-section" },
+      h("h2", null, "최근 만든 초대장"),
+      h("div", { className: "recent-grid" },
+        events.slice(0, 4).map((event) =>
+          h("button", { key: event.code, className: "recent-card", onClick: () => navigate(`/e/${event.code}`) },
+            h("strong", null, event.title),
+            h("span", null, `${formatDate(event.date)} · ${event.code}`)
+          )
+        )
+      )
+    )
+  );
+}
+
+function CreateScreen({ events, updateEvent }) {
+  const [event, setEvent] = useState({ ...defaultEvent, code: uniqueCode(events), password: "", createdAt: new Date().toISOString() });
+  const setField = (field, value) => setEvent((prev) => ({ ...prev, [field]: value }));
+
+  const submit = (formEvent) => {
+    formEvent.preventDefault();
+    if (!event.password.trim()) {
+      alert("관리자 비밀번호를 입력해 주세요.");
+      return;
+    }
+    const code = event.code.toUpperCase();
+    sessionStorage.setItem(`partyPeople.skipArrival.${code}`, "1");
+    updateEvent({ ...event, code, rsvps: event.rsvps || [] });
+    navigate(`/e/${code}`);
+  };
+
+  return h("main", { className: "app-shell builder-shell" },
+    h(Header, { title: "초대장 만들기" }),
+    h("div", { className: "builder-layout" },
+      h("form", { className: "editor-panel", onSubmit: submit },
+        h(Field, { label: "모임 이름" }, h("input", { value: event.title, onChange: (e) => setField("title", e.target.value), maxLength: 36 })),
+        h(Field, { label: "한 줄 소개" }, h("input", { value: event.subtitle, onChange: (e) => setField("subtitle", e.target.value), maxLength: 42 })),
+        h("div", { className: "two-col" },
+          h(Field, { label: "날짜" }, h("input", { type: "date", value: event.date, onChange: (e) => setField("date", e.target.value) })),
+          h(Field, { label: "시간" }, h("input", { type: "time", value: event.time, onChange: (e) => setField("time", e.target.value) }))
+        ),
+        h(Field, { label: "장소명" }, h("input", { value: event.placeName, onChange: (e) => setField("placeName", e.target.value), maxLength: 32 })),
+        h(Field, { label: "주소" }, h("input", { value: event.address, onChange: (e) => setField("address", e.target.value), maxLength: 64 })),
+        h(Field, { label: "네이버지도 링크" }, h("input", { value: event.placeUrl, onChange: (e) => setField("placeUrl", e.target.value), placeholder: "https://map.naver.com/..." })),
+        h(Field, { label: "초대글" }, h("textarea", { value: event.description, onChange: (e) => setField("description", e.target.value), maxLength: 160 })),
+        h(Field, { label: "관리자 비밀번호" }, h("input", { type: "password", value: event.password, onChange: (e) => setField("password", e.target.value), placeholder: "수정/관리할 때 사용" })),
+        h("div", { className: "theme-picker" },
+          themes.map((theme) =>
+            h("button", { type: "button", key: theme.id, className: event.themeId === theme.id ? "theme-swatch selected" : "theme-swatch", onClick: () => setField("themeId", theme.id) },
+              h("span", { className: "swatch-colors" }, theme.palette.map((color) => h("i", { key: color, style: { background: color } }))),
+              h("strong", null, theme.name),
+              h("small", null, theme.label)
+            )
+          )
+        ),
+        h("button", { className: "primary-button wide-button", type: "submit" }, "초대장 저장")
+      ),
+      h("aside", { className: "preview-panel" },
+        h(InvitePoster, { event, compact: false }),
+        h("p", { className: "code-note" }, `초대코드 ${event.code}`)
+      )
+    )
+  );
+}
+
+function EventScreen({ event, updateEvent }) {
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState("yes");
+  const [guests, setGuests] = useState(0);
+  const [message, setMessage] = useState("");
+  const [opened, setOpened] = useState(() => event ? consumeArrivalSkip(event.code) : false);
+
+  useEffect(() => {
+    if (!event || !name.trim()) return;
+    const existing = (event.rsvps || []).find((rsvp) => rsvp.name === name.trim());
+    if (existing) {
+      setStatus(existing.status);
+      setGuests(existing.guests);
+      setMessage(existing.message || "");
+    }
+  }, [name, event]);
+
+  if (!event) return h(NotFoundScreen);
+  if (!opened) return h(InviteArrivalScreen, { event, onOpen: () => setOpened(true) });
+
+  const counts = getCounts(event.rsvps || []);
+  const submit = (formEvent) => {
+    formEvent.preventDefault();
+    const cleanName = name.trim();
+    if (!cleanName) {
+      alert("이름을 입력해 주세요.");
+      return;
+    }
+    const nextRsvp = { name: cleanName, status, guests: Number(guests) || 0, message: message.trim(), updatedAt: new Date().toISOString() };
+    const nextRsvps = [nextRsvp, ...(event.rsvps || []).filter((rsvp) => rsvp.name !== cleanName)];
+    updateEvent({ ...event, rsvps: nextRsvps });
+    alert("참석 여부가 저장됐어요.");
+  };
+
+  return h("main", { className: "app-shell event-shell" },
+    h(Header, { title: "초대장", adminCode: event.code }),
+    h("div", { className: "event-layout" },
+      h("section", { className: "poster-column" },
+        h(InvitePoster, { event }),
+        h("div", { className: "invite-code-card" }, h("span", null, "초대코드"), h("strong", null, event.code)),
+        h("div", { className: "share-row" },
+          h("button", { onClick: () => downloadStoryImage(event) }, "스토리 이미지 저장"),
+          h("button", { onClick: () => shareStoryImage(event) }, "이미지 공유"),
+          h("button", { onClick: () => copyText(location.href) }, "링크 복사"),
+          event.placeUrl && h("button", { onClick: () => window.open(event.placeUrl, "_blank") }, "네이버지도")
+        )
+      ),
+      h("section", { className: "rsvp-panel" },
+        h("div", { className: "count-row" },
+          h(CountPill, { label: "참석", value: counts.yes }),
+          h(CountPill, { label: "미정", value: counts.maybe }),
+          h(CountPill, { label: "불참", value: counts.no })
+        ),
+        h("form", { onSubmit: submit, className: "rsvp-form" },
+          h(Field, { label: "이름" }, h("input", { value: name, onChange: (e) => setName(e.target.value), placeholder: "친구들이 알아볼 이름" })),
+          h("div", { className: "segmented" }, statusButton("yes", "참석", status, setStatus), statusButton("maybe", "미정", status, setStatus), statusButton("no", "불참", status, setStatus)),
+          h(Field, { label: "동반 인원" }, h("input", { type: "number", min: "0", max: "9", value: guests, onChange: (e) => setGuests(e.target.value) })),
+          h(Field, { label: "한마디" }, h("textarea", { value: message, onChange: (e) => setMessage(e.target.value), placeholder: "선택사항", maxLength: 80 })),
+          h("button", { className: "primary-button wide-button", type: "submit" }, "참석 여부 저장")
+        )
+      )
+    )
+  );
+}
+
+function InviteArrivalScreen({ event, onOpen }) {
+  const theme = getTheme(event.themeId);
+  return h("main", { className: `arrival-shell ${theme.className}`, style: { "--poster-image": `url("${theme.cssImage}")`, "--poster-text": theme.textColor } },
+    h("div", { className: "arrival-card" },
+      h("img", { className: "arrival-gif", src: "assets/arrival/mailbox-arrival.gif", alt: "픽셀 우편함에 초대장이 도착하는 애니메이션" }),
+      h("p", { className: "arrival-kicker" }, "초대장이 도착했어요"),
+      h("h1", null, event.title),
+      h("p", { className: "arrival-meta" }, `${formatDate(event.date)} · ${formatTime(event.time)}`),
+      h("button", { className: "arrival-open-button", onClick: onOpen }, "초대장 열기"),
+      h("button", { className: "arrival-code-button", onClick: () => copyText(event.code) }, `초대코드 ${event.code}`)
+    )
+  );
+}
+
+function AdminScreen({ events, updateEvent, code }) {
+  const event = code ? events.find((item) => item.code === code) : null;
+  const [inputCode, setInputCode] = useState(code || "");
+  const [password, setPassword] = useState("");
+  const [unlocked, setUnlocked] = useState(false);
+
+  const enter = (formEvent) => {
+    formEvent.preventDefault();
+    const nextEvent = events.find((item) => item.code === inputCode.trim().toUpperCase());
+    if (!nextEvent) {
+      alert("초대장을 찾을 수 없어요.");
+      return;
+    }
+    if (nextEvent.password !== password) {
+      alert("비밀번호가 달라요.");
+      return;
+    }
+    setUnlocked(true);
+    navigate(`/admin/${nextEvent.code}`);
+  };
+
+  if (!event || !unlocked) {
+    return h("main", { className: "app-shell admin-login-shell" },
+      h(Header, { title: "관리자 입장" }),
+      h("form", { className: "admin-login", onSubmit: enter },
+        h(Field, { label: "초대코드" }, h("input", { value: inputCode, onChange: (e) => setInputCode(e.target.value), placeholder: "예: A7K92B" })),
+        h(Field, { label: "비밀번호" }, h("input", { type: "password", value: password, onChange: (e) => setPassword(e.target.value) })),
+        h("button", { className: "primary-button wide-button", type: "submit" }, "관리하기")
+      )
+    );
+  }
+
+  const counts = getCounts(event.rsvps || []);
+  const removeRsvp = (name) => updateEvent({ ...event, rsvps: (event.rsvps || []).filter((rsvp) => rsvp.name !== name) });
+
+  return h("main", { className: "app-shell admin-shell" },
+    h(Header, { title: "관리자" }),
+    h("section", { className: "admin-summary" },
+      h("div", null, h("span", null, "초대코드"), h("strong", null, event.code)),
+      h("div", null, h("span", null, "참석"), h("strong", null, counts.yes)),
+      h("div", null, h("span", null, "미정"), h("strong", null, counts.maybe)),
+      h("div", null, h("span", null, "불참"), h("strong", null, counts.no))
+    ),
+    h("div", { className: "admin-actions" },
+      h("button", { onClick: () => copyText(`${location.origin}${location.pathname}#/e/${event.code}`) }, "초대 링크 복사"),
+      h("button", { onClick: () => navigate(`/e/${event.code}`) }, "초대장 보기")
+    ),
+    h("section", { className: "guest-list" },
+      h("h2", null, "참석자"),
+      (event.rsvps || []).length === 0
+        ? h("p", { className: "empty-note" }, "아직 응답이 없어요.")
+        : (event.rsvps || []).map((rsvp) =>
+          h("article", { className: "guest-row", key: rsvp.name },
+            h("div", null, h("strong", null, rsvp.name), h("span", null, `${statusLabel(rsvp.status)} · 동반 ${rsvp.guests || 0}명`)),
+            h("p", null, rsvp.message || ""),
+            h("button", { onClick: () => removeRsvp(rsvp.name) }, "삭제")
+          )
+        )
+    )
+  );
+}
+
+function InvitePoster({ event, compact }) {
+  const theme = getTheme(event.themeId);
+  return h("article", { className: `invite-poster ${theme.className} ${compact ? "compact" : ""}`, style: { "--accent": theme.accent, "--title-font": theme.titleFont, "--body-font": theme.bodyFont, "--poster-image": `url("${theme.cssImage}")`, "--poster-text": theme.textColor } },
+    h("div", { className: "poster-decoration deco-one" }),
+    h("div", { className: "poster-decoration deco-two" }),
+    h("div", { className: "poster-inner" },
+      h("p", { className: "poster-kicker" }, event.subtitle || "초대합니다"),
+      h("h1", null, event.title || "이름 없는 모임"),
+      h("div", { className: "poster-date" }, h("strong", null, formatDate(event.date)), h("span", null, formatTime(event.time))),
+      h("div", { className: "poster-place" }, h("strong", null, event.placeName || "장소 미정"), h("span", null, event.address || "주소 미정")),
+      h("p", { className: "poster-desc" }, event.description || "곧 만나요.")
+    )
+  );
+}
+
+function Header({ title, adminCode }) {
+  return h("header", { className: "topbar" },
+    h("button", { className: "brand-button", onClick: () => navigate("/") }, h("span", { className: "brand-mark small" }, "피"), h("span", null, "파티피플")),
+    h("strong", null, title),
+    adminCode ? h("button", { className: "text-button", onClick: () => navigate(`/admin/${adminCode}`) }, "관리") : h("span", null)
+  );
+}
+
+function Field({ label, children }) {
+  return h("label", { className: "field" }, h("span", null, label), children);
+}
+
+function CountPill({ label, value }) {
+  return h("div", { className: "count-pill" }, h("span", null, label), h("strong", null, value));
+}
+
+function NotFoundScreen() {
+  return h("main", { className: "app-shell not-found-shell" },
+    h(Header, { title: "초대장 없음" }),
+    h("section", { className: "empty-state" },
+      h("h1", null, "초대장을 찾을 수 없어요"),
+      h("button", { className: "primary-button", onClick: () => navigate("/") }, "처음으로")
+    )
+  );
+}
+
+function statusButton(value, label, selected, setSelected) {
+  return h("button", { type: "button", className: selected === value ? "selected" : "", onClick: () => setSelected(value) }, label);
+}
+
+function statusLabel(status) {
+  return { yes: "참석", maybe: "미정", no: "불참" }[status] || "미정";
+}
+
+function getCounts(rsvps) {
+  return rsvps.reduce((counts, rsvp) => {
+    counts[rsvp.status] = (counts[rsvp.status] || 0) + 1 + (Number(rsvp.guests) || 0);
+    return counts;
+  }, { yes: 0, maybe: 0, no: 0 });
+}
+
+function uniqueCode(events) {
+  let code = randomCode();
+  while (events.some((event) => event.code === code)) code = randomCode();
+  return code;
+}
+
+function consumeArrivalSkip(code) {
+  const key = `partyPeople.skipArrival.${code}`;
+  const legacyKey = `moidam.skipArrival.${code}`;
+  const shouldSkip = sessionStorage.getItem(key) === "1" || sessionStorage.getItem(legacyKey) === "1";
+  if (shouldSkip) {
+    sessionStorage.removeItem(key);
+    sessionStorage.removeItem(legacyKey);
+  }
+  return shouldSkip;
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    alert("복사됐어요.");
+  } catch {
+    window.prompt("복사할 링크", text);
+  }
+}
+
+async function downloadStoryImage(event) {
+  const blob = await createStoryBlob(event);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `party-people-${event.code}-story.png`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function shareStoryImage(event) {
+  const blob = await createStoryBlob(event);
+  const file = new File([blob], `party-people-${event.code}-story.png`, { type: "image/png" });
+  const shareData = { title: event.title, text: `${event.title} 초대장`, files: [file] };
+
+  if (navigator.canShare && navigator.canShare(shareData)) {
+    try {
+      await navigator.share(shareData);
+    } catch (error) {
+      if (error.name !== "AbortError") {
+        await downloadStoryImage(event);
+        alert("공유창을 열 수 없어서 이미지를 저장했어요.");
+      }
+    }
+    return;
+  }
+
+  await downloadStoryImage(event);
+  alert("이 브라우저에서는 바로 공유가 어려워서 이미지를 저장했어요.");
+}
+
+async function createStoryBlob(event) {
+  const theme = getTheme(event.themeId);
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext("2d");
+  const image = await loadImage(theme.image);
+  drawCoverImage(ctx, image, canvas.width, canvas.height);
+
+  const darkThemes = ["neon", "home", "serif"];
+  const isDark = darkThemes.includes(theme.id);
+  const textColor = theme.textColor || (isDark ? "#fff7e6" : "#202124");
+  const softColor = isDark ? "rgba(255,255,255,0.82)" : "rgba(32,33,36,0.72)";
+  const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  gradient.addColorStop(0, isDark ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.18)");
+  gradient.addColorStop(0.45, isDark ? "rgba(0,0,0,0.24)" : "rgba(255,255,255,0.34)");
+  gradient.addColorStop(1, isDark ? "rgba(0,0,0,0.62)" : "rgba(255,255,255,0.72)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.textBaseline = "top";
+  ctx.fillStyle = textColor;
+  ctx.font = `800 44px ${canvasFont(theme.bodyFont)}`;
+  ctx.fillText(event.subtitle || "초대합니다", 94, 170);
+  ctx.font = `900 118px ${canvasFont(theme.titleFont)}`;
+  drawWrappedText(ctx, event.title || "이름 없는 모임", 90, 300, 900, 126, 4, textColor);
+
+  const infoY = 1120;
+  drawInfoBlock(ctx, "WHEN", `${formatDate(event.date)}  ${formatTime(event.time)}`, 90, infoY, textColor, softColor, theme);
+  drawInfoBlock(ctx, "WHERE", event.placeName || "장소 미정", 90, infoY + 172, textColor, softColor, theme);
+  ctx.font = `500 38px ${canvasFont(theme.bodyFont)}`;
+  drawWrappedText(ctx, event.address || "주소 미정", 90, infoY + 286, 820, 52, 2, softColor);
+
+  ctx.fillStyle = isDark ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.84)";
+  roundRect(ctx, 86, 1650, 908, 142, 30);
+  ctx.fill();
+  ctx.fillStyle = "#171717";
+  ctx.font = `800 34px ${canvasFont(theme.bodyFont)}`;
+  ctx.fillText("초대코드", 130, 1684);
+  ctx.font = `900 58px ${canvasFont(theme.bodyFont)}`;
+  ctx.fillText(event.code, 130, 1728);
+  ctx.font = `700 30px ${canvasFont(theme.bodyFont)}`;
+  ctx.fillStyle = "rgba(23,23,23,0.62)";
+  ctx.fillText("파티피플에서 코드로 입장", 562, 1714);
+
+  return new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.96));
+}
+
+function drawInfoBlock(ctx, label, value, x, y, textColor, softColor, theme) {
+  ctx.fillStyle = softColor;
+  ctx.font = `800 28px ${canvasFont(theme.bodyFont)}`;
+  ctx.fillText(label, x, y);
+  ctx.fillStyle = textColor;
+  ctx.font = `800 46px ${canvasFont(theme.bodyFont)}`;
+  drawWrappedText(ctx, value, x, y + 48, 850, 58, 2, textColor);
+}
+
+function canvasFont(fontStack) {
+  return fontStack.replace(/'/g, "\"");
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = reject;
+    image.src = src;
+  });
+}
+
+function drawCoverImage(ctx, image, width, height) {
+  const scale = Math.max(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function drawWrappedText(ctx, text, x, y, maxWidth, lineHeight, maxLines, fillStyle) {
+  const chars = String(text).split("");
+  const lines = [];
+  let line = "";
+
+  chars.forEach((char) => {
+    const next = line + char;
+    if (ctx.measureText(next).width > maxWidth && line) {
+      lines.push(line);
+      line = char;
+    } else {
+      line = next;
+    }
+  });
+  if (line) lines.push(line);
+
+  ctx.fillStyle = fillStyle;
+  lines.slice(0, maxLines).forEach((lineText, index) => {
+    const finalText = index === maxLines - 1 && lines.length > maxLines ? `${lineText.slice(0, -1)}…` : lineText;
+    ctx.fillText(finalText, x, y + lineHeight * index);
+  });
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(h(App));
