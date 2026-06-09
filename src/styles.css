@@ -310,15 +310,18 @@ textarea:focus {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 24px;
 }
 
 .event-brand-button {
+  min-width: 0;
   color: var(--poster-text);
   text-shadow: 0 2px 14px rgba(0, 0, 0, 0.3);
 }
 
 .event-admin-link {
+  flex: 0 0 auto;
   min-height: 34px;
   border: 0;
   border-radius: 999px;
@@ -514,6 +517,200 @@ textarea:focus {
 .event-segmented button.selected {
   background: var(--accent);
   color: #111;
+}
+
+.create-shell {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  background: #090909;
+}
+
+.composer-form {
+  display: grid;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.composer-event-page {
+  width: 100%;
+  max-width: 100%;
+  min-height: 100vh;
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.52) 64%, rgba(0, 0, 0, 0.72)),
+    var(--poster-image);
+  background-size: cover;
+  background-position: center;
+  overflow-x: hidden;
+  box-shadow: none;
+}
+
+.composer-event-phone {
+  width: min(600px, calc(100% - 80px));
+  max-width: 100%;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 14px 0 22px;
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0.52) 64%, rgba(0, 0, 0, 0.72)),
+    var(--poster-image);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
+  overflow-x: hidden;
+}
+
+.composer-event-phone > * {
+  width: 100%;
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+@media (max-width: 520px) {
+  .composer-event-phone {
+    width: 100%;
+  }
+
+  .composer-event-phone > * {
+    width: 100%;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+.composer-event-phone input,
+.composer-event-phone textarea {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  box-shadow: none;
+}
+
+.composer-event-phone input:focus,
+.composer-event-phone textarea:focus {
+  border-color: transparent;
+  box-shadow: 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+.composer-inline-label,
+.composer-title-label {
+  display: grid;
+  gap: 4px;
+}
+
+.composer-inline-label > span,
+.composer-title-label > span,
+.composer-date-block label > span {
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.composer-kicker-input {
+  font-size: 13px;
+  font-weight: 900;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.38);
+}
+
+.composer-title-input {
+  width: 100%;
+  min-height: 104px;
+  font-family: var(--title-font);
+  font-size: clamp(34px, 10.5vw, 48px);
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: 0;
+  resize: none;
+  text-shadow: 0 3px 26px rgba(0, 0, 0, 0.46);
+  overflow: hidden;
+}
+
+.composer-date-block {
+  grid-template-columns: 1fr 0.62fr;
+  gap: 12px;
+}
+
+.composer-date-block label {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.composer-date-block input {
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.composer-info-row label,
+.composer-info-row > span,
+.composer-event-phone .event-info-row > span:not(.event-info-icon) {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.composer-info-row input {
+  width: 100%;
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.35;
+}
+
+.composer-info-row input::placeholder,
+.composer-event-phone textarea::placeholder {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.composer-share-row button {
+  min-width: 0;
+  pointer-events: none;
+}
+
+.composer-event-phone .event-code-card,
+.composer-event-phone .event-share-row,
+.composer-event-phone .event-info-row,
+.composer-event-phone .event-hero {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.composer-event-phone .avatar-stack {
+  display: none;
+}
+
+.composer-event-phone .event-admin-link {
+  margin-right: 24px;
+}
+
+.composer-settings {
+  display: grid;
+  gap: 14px;
+  width: min(430px, 100%);
+  margin: 0 auto;
+  padding: 18px 16px 28px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(23, 23, 23, 0.08);
+}
+
+.composer-settings h2 {
+  margin: 0;
+  font-size: 18px;
 }
 
 .preview-event-page {

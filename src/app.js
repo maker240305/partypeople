@@ -178,21 +178,13 @@ function CreateScreen({ events, updateEvent }) {
     navigate(`/e/${code}`);
   };
 
-  return h("main", { className: "app-shell builder-shell" },
-    h(Header, { title: "초대장 만들기" }),
-    h("div", { className: "builder-layout" },
-      h("form", { className: "editor-panel", onSubmit: submit },
-        h(Field, { label: "모임 이름" }, h("input", { value: event.title, onChange: (e) => setField("title", e.target.value), maxLength: 36 })),
-        h(Field, { label: "한 줄 소개" }, h("input", { value: event.subtitle, onChange: (e) => setField("subtitle", e.target.value), maxLength: 42 })),
-        h(Field, { label: "주선자 이름" }, h("input", { value: event.hostName, onChange: (e) => setField("hostName", e.target.value), placeholder: "예: 민수", maxLength: 24 })),
-        h("div", { className: "two-col" },
-          h(Field, { label: "날짜" }, h("input", { type: "date", value: event.date, onChange: (e) => setField("date", e.target.value) })),
-          h(Field, { label: "시간" }, h("input", { type: "time", value: event.time, onChange: (e) => setField("time", e.target.value) }))
-        ),
-        h(Field, { label: "장소명" }, h("input", { value: event.placeName, onChange: (e) => setField("placeName", e.target.value), maxLength: 32 })),
-        h(Field, { label: "주소" }, h("input", { value: event.address, onChange: (e) => setField("address", e.target.value), maxLength: 64 })),
-        h(Field, { label: "네이버지도 링크" }, h("input", { value: event.placeUrl, onChange: (e) => setField("placeUrl", e.target.value), placeholder: "https://map.naver.com/..." })),
+  return h("main", { className: "create-shell" },
+    h("form", { className: "composer-form", onSubmit: submit },
+      h(EditableInviteComposer, { event, setField }),
+      h("section", { className: "composer-settings" },
+        h("h2", null, "추가 설정"),
         h(Field, { label: "초대글" }, h("textarea", { value: event.description, onChange: (e) => setField("description", e.target.value), maxLength: 160 })),
+        h(Field, { label: "네이버지도 링크" }, h("input", { value: event.placeUrl, onChange: (e) => setField("placeUrl", e.target.value), placeholder: "https://map.naver.com/..." })),
         h(Field, { label: "관리자 비밀번호" }, h("input", { type: "password", value: event.password, onChange: (e) => setField("password", e.target.value), placeholder: "수정/관리할 때 사용" })),
         h("div", { className: "theme-picker" },
           themes.map((theme) =>
@@ -204,10 +196,86 @@ function CreateScreen({ events, updateEvent }) {
           )
         ),
         h("button", { className: "primary-button wide-button", type: "submit" }, "초대장 저장")
+      )
+    )
+  );
+}
+
+function EditableInviteComposer({ event, setField }) {
+  const theme = getTheme(event.themeId);
+  const previewGuests = [{ name: "서연", status: "yes", guests: 1 }, { name: "민수", status: "maybe", guests: 0 }];
+  const counts = getCounts(previewGuests);
+
+  return h("section", {
+    className: `event-page composer-event-page ${theme.className}`,
+    style: {
+      "--poster-image": `url("${theme.cssImage}")`,
+      "--poster-text": theme.textColor,
+      "--accent": theme.accent,
+      "--title-font": theme.titleFont,
+      "--body-font": theme.bodyFont
+    }
+  },
+    h("div", { className: "event-phone composer-event-phone" },
+      h("header", { className: "event-brandbar" },
+        h("button", { className: "brand-button event-brand-button", type: "button", onClick: () => navigate("/") },
+          h("span", { className: "brand-mark small" }, "피"),
+          h("span", null, "파티피플")
+        ),
+        h("span", { className: "event-admin-link" }, "편집")
       ),
-      h("aside", { className: "preview-panel" },
-        h(CompactEventPreview, { event }),
-        h("p", { className: "code-note" }, `초대코드 ${event.code}`)
+      h("section", { className: "event-hero composer-hero" },
+        h("label", { className: "composer-inline-label" },
+          h("span", null, "한 줄 소개"),
+          h("input", { className: "composer-kicker-input", value: event.subtitle, onChange: (e) => setField("subtitle", e.target.value), maxLength: 42 })
+        ),
+        h("label", { className: "composer-title-label" },
+          h("span", null, "모임 이름"),
+          h("textarea", { className: "composer-title-input", value: event.title, onChange: (e) => setField("title", e.target.value), maxLength: 36, rows: 2 })
+        ),
+        h("div", { className: "event-art-card" }, h("div", { className: "event-art-word" }, getPosterWord(event.title)))
+      ),
+      h("section", { className: "event-info-stack composer-info-stack" },
+        h("div", { className: "event-date-block composer-date-block" },
+          h("label", null,
+            h("span", null, "날짜"),
+            h("input", { type: "date", value: event.date, onChange: (e) => setField("date", e.target.value) })
+          ),
+          h("label", null,
+            h("span", null, "시간"),
+            h("input", { type: "time", value: event.time, onChange: (e) => setField("time", e.target.value) })
+          )
+        ),
+        h("div", { className: "event-info-row composer-info-row" },
+          h("span", { className: "event-info-icon" }, "★"),
+          h("label", null,
+            h("small", null, "Hosted by"),
+            h("input", { value: event.hostName, onChange: (e) => setField("hostName", e.target.value), placeholder: "주선자 이름", maxLength: 24 })
+          )
+        ),
+        h("div", { className: "event-info-row composer-info-row" },
+          h("span", { className: "event-info-icon" }, "⌖"),
+          h("span", null,
+            h("small", null, "Location"),
+            h("input", { value: event.placeName, onChange: (e) => setField("placeName", e.target.value), placeholder: "장소명", maxLength: 32 }),
+            h("input", { value: event.address, onChange: (e) => setField("address", e.target.value), placeholder: "주소", maxLength: 64 })
+          )
+        ),
+        h("div", { className: "event-info-row attendees-row" },
+          h("span", { className: "event-info-icon" }, "✓"),
+          h("span", null,
+            h("small", null, "Guests"),
+            h("strong", null, `${counts.yes}명 참석 예정`),
+            h("em", null, `미정 ${counts.maybe}명 · 불참 ${counts.no}명`)
+          ),
+          h("div", { className: "avatar-stack" }, h("i", null, "서"), h("i", null, "민"))
+        ),
+        h("div", { className: "share-row event-share-row composer-share-row" },
+          h("button", { type: "button" }, "스토리 저장"),
+          h("button", { type: "button" }, "이미지 공유"),
+          h("button", { type: "button" }, "링크 복사")
+        ),
+        h("div", { className: "invite-code-card event-code-card" }, h("span", null, "초대코드"), h("strong", null, event.code))
       )
     )
   );
@@ -362,7 +430,7 @@ function CompactEventPreview({ event }) {
   },
     h("div", { className: "event-phone preview-event-phone" },
       h("header", { className: "event-brandbar" },
-        h("div", { className: "brand-button event-brand-button" },
+        h("button", { className: "brand-button event-brand-button", type: "button", onClick: () => navigate("/") },
           h("span", { className: "brand-mark small" }, "피"),
           h("span", null, "파티피플")
         ),
