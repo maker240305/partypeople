@@ -13,6 +13,13 @@ const themes = [
   { id: "serif", name: "Soft Formal", label: "모임", titleFont: "'Noto Serif KR', serif", bodyFont: "Pretendard, sans-serif", palette: ["#10151a", "#d7b56d", "#eef1f4", "#6488a6"], accent: "#d7b56d", image: "assets/templates/year-end.png", cssImage: "../assets/templates/year-end.png", textColor: "#f3efe4", className: "theme-serif" }
 ];
 
+const posterImages = [
+  { id: "neon-birthday", name: "Neon Birthday", src: "assets/posters/neon-birthday.png" },
+  { id: "mint-cake", name: "Mint Cake", src: "assets/posters/mint-cake.png" },
+  { id: "rooftop-night", name: "Rooftop Night", src: "assets/posters/rooftop-night.png" },
+  { id: "picnic-spring", name: "Picnic Spring", src: "assets/posters/picnic-spring.png" }
+];
+
 const defaultEvent = {
   code: "",
   password: "",
@@ -26,6 +33,7 @@ const defaultEvent = {
   placeUrl: "",
   description: "편하게 와서 같이 먹고 얘기해요. 늦게 와도 괜찮아요.",
   themeId: "neon",
+  posterImageId: "neon-birthday",
   createdAt: ""
 };
 
@@ -73,6 +81,16 @@ function formatTime(timeValue) {
 
 function getTheme(themeId) {
   return themes.find((theme) => theme.id === themeId) || themes[0];
+}
+
+function getPosterImage(posterImageId) {
+  return posterImages.find((image) => image.id === posterImageId) || posterImages[0];
+}
+
+function getPosterImageByOffset(posterImageId, offset) {
+  const currentIndex = Math.max(0, posterImages.findIndex((image) => image.id === posterImageId));
+  const nextIndex = (currentIndex + offset + posterImages.length) % posterImages.length;
+  return posterImages[nextIndex];
 }
 
 function getPosterWord(title) {
@@ -203,8 +221,12 @@ function CreateScreen({ events, updateEvent }) {
 
 function EditableInviteComposer({ event, setField }) {
   const theme = getTheme(event.themeId);
+  const posterImage = getPosterImage(event.posterImageId);
   const previewGuests = [{ name: "서연", status: "yes", guests: 1 }, { name: "민수", status: "maybe", guests: 0 }];
   const counts = getCounts(previewGuests);
+  const choosePoster = (offset) => {
+    setField("posterImageId", getPosterImageByOffset(event.posterImageId, offset).id);
+  };
 
   return h("section", {
     className: `event-page composer-event-page ${theme.className}`,
@@ -233,7 +255,11 @@ function EditableInviteComposer({ event, setField }) {
           h("span", null, "모임 이름"),
           h("textarea", { className: "composer-title-input", value: event.title, onChange: (e) => setField("title", e.target.value), maxLength: 36, rows: 2 })
         ),
-        h("div", { className: "event-art-card" }, h("div", { className: "event-art-word" }, getPosterWord(event.title)))
+        h("div", { className: "event-art-card poster-picker-card" },
+          h("img", { src: posterImage.src, alt: posterImage.name }),
+          h("button", { className: "poster-arrow poster-arrow-left", type: "button", onClick: () => choosePoster(-1), "aria-label": "이전 이미지" }, "<"),
+          h("button", { className: "poster-arrow poster-arrow-right", type: "button", onClick: () => choosePoster(1), "aria-label": "다음 이미지" }, ">")
+        )
       ),
       h("section", { className: "event-info-stack composer-info-stack" },
         h("div", { className: "event-date-block composer-date-block" },
@@ -316,6 +342,7 @@ function EventScreen({ event, updateEvent }) {
   };
 
   const theme = getTheme(event.themeId);
+  const posterImage = getPosterImage(event.posterImageId);
   const yesGuests = (event.rsvps || []).filter((rsvp) => rsvp.status === "yes");
   const totalGoing = counts.yes;
   const locationUrl = getLocationUrl(event);
@@ -343,7 +370,7 @@ function EventScreen({ event, updateEvent }) {
         h("p", { className: "event-kicker" }, event.subtitle || "초대합니다"),
         h("h1", null, event.title || "이름 없는 모임"),
         h("div", { className: "event-art-card" },
-          h("div", { className: "event-art-word" }, getPosterWord(event.title))
+          h("img", { src: posterImage.src, alt: posterImage.name })
         )
       ),
       h("section", { className: "event-info-stack" },
@@ -415,6 +442,7 @@ function InviteArrivalScreen({ event, onOpen }) {
 
 function CompactEventPreview({ event }) {
   const theme = getTheme(event.themeId);
+  const posterImage = getPosterImage(event.posterImageId);
   const previewEvent = { ...event, rsvps: [{ name: "가", status: "yes", guests: 0 }, { name: "나", status: "maybe", guests: 0 }] };
   const counts = getCounts(previewEvent.rsvps);
 
@@ -439,7 +467,7 @@ function CompactEventPreview({ event }) {
       h("section", { className: "event-hero" },
         h("p", { className: "event-kicker" }, event.subtitle || "초대합니다"),
         h("h1", null, event.title || "이름 없는 모임"),
-        h("div", { className: "event-art-card" }, h("div", { className: "event-art-word" }, getPosterWord(event.title)))
+        h("div", { className: "event-art-card" }, h("img", { src: posterImage.src, alt: posterImage.name }))
       ),
       h("section", { className: "event-info-stack" },
         h("div", { className: "event-date-block" }, h("strong", null, formatDate(event.date)), h("span", null, formatTime(event.time))),
