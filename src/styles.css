@@ -386,28 +386,46 @@ textarea:focus {
   position: absolute;
   z-index: 2;
   top: 50%;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   display: grid;
   place-items: center;
-  border: 0;
+  border: 1px solid rgba(255, 255, 255, 0.42);
   border-radius: 999px;
-  background: rgba(12, 12, 16, 0.58);
-  color: #fff7df;
-  font-size: 24px;
+  background:
+    radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.18) 34%, transparent 58%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.38), rgba(255, 255, 255, 0.09) 48%, rgba(20, 22, 28, 0.22));
+  color: rgba(255, 255, 255, 0.96);
+  font-size: 25px;
   font-weight: 900;
   line-height: 1;
   transform: translateY(-50%);
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(10px);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.52);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.72),
+    inset 0 -12px 20px rgba(255, 255, 255, 0.1),
+    0 10px 28px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(18px) saturate(1.45) contrast(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.45) contrast(1.08);
+  overflow: hidden;
+}
+
+.poster-arrow::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.48), transparent 34%, rgba(255, 255, 255, 0.08) 72%);
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 .poster-arrow-left {
-  left: 10px;
+  left: 12px;
 }
 
 .poster-arrow-right {
-  right: 10px;
+  right: 12px;
 }
 
 .event-art-word {
