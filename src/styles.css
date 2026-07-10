@@ -303,6 +303,7 @@ textarea:focus {
     var(--poster-image);
   background-size: cover;
   background-position: center;
+  background-attachment: fixed;
   box-shadow: 0 0 80px rgba(0, 0, 0, 0.55);
 }
 
