@@ -778,6 +778,7 @@ async function shareStoryImage(event) {
 
 async function createStoryBlob(event) {
   const theme = getTheme(event.themeId);
+  const posterImage = getPosterImage(event.posterImageId);
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 1920;
@@ -785,8 +786,12 @@ async function createStoryBlob(event) {
   if (location.protocol === "file:") {
     drawStoryFallbackBackground(ctx, theme, canvas.width, canvas.height);
   } else {
-    const image = await loadImage(theme.image);
-    drawCoverImage(ctx, image, canvas.width, canvas.height);
+    const [backgroundImage, cardImage] = await Promise.all([
+      loadImage(theme.image),
+      loadImage(posterImage.src)
+    ]);
+    drawCoverImage(ctx, backgroundImage, canvas.width, canvas.height);
+    drawStoryPoster(ctx, cardImage, 90, 580, 900, 470);
   }
 
   const darkThemes = ["neon", "home", "serif"];
@@ -871,6 +876,21 @@ function drawCoverImage(ctx, image, width, height) {
   const drawWidth = image.width * scale;
   const drawHeight = image.height * scale;
   ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+}
+
+function drawStoryPoster(ctx, image, x, y, width, height) {
+  ctx.save();
+  roundRect(ctx, x, y, width, height, 30);
+  ctx.clip();
+  const scale = Math.max(width / image.width, height / image.height);
+  const drawWidth = image.width * scale;
+  const drawHeight = image.height * scale;
+  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+  ctx.restore();
+  ctx.strokeStyle = "rgba(255,255,255,0.72)";
+  ctx.lineWidth = 3;
+  roundRect(ctx, x, y, width, height, 30);
+  ctx.stroke();
 }
 
 function drawStoryFallbackBackground(ctx, theme, width, height) {
