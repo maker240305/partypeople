@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/e/:code",
+      "destination": "/api/invite?code=:code"
+    }
+  ]
+}

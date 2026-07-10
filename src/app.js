@@ -143,6 +143,10 @@ function navigate(path) {
   window.location.hash = path;
 }
 
+function getPublicInviteUrl(code) {
+  return `${window.location.origin}/e/${encodeURIComponent(String(code || "").toUpperCase())}`;
+}
+
 function formatDate(dateValue) {
   if (!dateValue) return "날짜 미정";
   const date = new Date(`${dateValue}T00:00:00`);
@@ -614,7 +618,7 @@ function EventScreen({ event, updateEvent }) {
         h("div", { className: "share-row event-share-row" },
           h("button", { onClick: () => downloadStoryImage(event) }, "스토리 저장"),
           h("button", { onClick: () => shareStoryImage(event) }, "이미지 공유"),
-          h("button", { onClick: () => copyText(location.href) }, "링크 복사")
+          h("button", { onClick: () => copyText(getPublicInviteUrl(event.code)) }, "링크 복사")
         ),
         h("p", { className: "event-description" }, event.description || "곧 만나요."),
         h("div", { className: "invite-code-card event-code-card" }, h("span", null, "초대코드"), h("strong", null, event.code))
@@ -751,7 +755,7 @@ function AdminScreen({ events, updateEvent, code, adminGetEvent, adminRemoveRsvp
       h("div", null, h("span", null, "불참"), h("strong", null, counts.no))
     ),
     h("div", { className: "admin-actions" },
-      h("button", { onClick: () => copyText(`${location.origin}${location.pathname}#/e/${event.code}`) }, "초대 링크 복사"),
+      h("button", { onClick: () => copyText(getPublicInviteUrl(event.code)) }, "초대 링크 복사"),
       h("button", { onClick: () => navigate(`/e/${event.code}`) }, "초대장 보기")
     ),
     h("section", { className: "guest-list" },
