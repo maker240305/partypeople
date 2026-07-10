@@ -788,10 +788,6 @@ textarea:focus {
   display: none;
 }
 
-.composer-event-phone .event-admin-link {
-  margin-right: 24px;
-}
-
 .composer-settings {
   display: grid;
   gap: 14px;
