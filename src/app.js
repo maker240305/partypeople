@@ -29,7 +29,7 @@ const defaultEvent = {
   title: "금요일 밤에 모여요",
   subtitle: "오랜만에 얼굴 보는 날",
   hostName: "파티피플",
-  date: "2026-06-19",
+  date: getSuggestedEventDate(),
   time: "19:30",
   placeName: "홍대 어딘가",
   address: "서울 마포구",
@@ -37,20 +37,56 @@ const defaultEvent = {
   description: "편하게 와서 같이 먹고 얘기해요. 늦게 와도 괜찮아요.",
   themeId: "neon",
   posterImageId: "neon-birthday",
+  customPosterImage: "",
+  posterPositionX: 50,
+  posterPositionY: 50,
+  posterZoom: 1,
   createdAt: ""
 };
+
+function getSuggestedEventDate() {
+  const date = new Date();
+  date.setDate(date.getDate() + 7);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
 
 function loadEvents() {
   try {
     const saved = localStorage.getItem(STORE_KEY) || localStorage.getItem(LEGACY_STORE_KEY);
-    return JSON.parse(saved) || [];
+    return (JSON.parse(saved) || []).filter((event) => !isEventExpired(event));
   } catch {
     return [];
   }
 }
 
+function isEventExpired(event) {
+  const eventDate = String(event && event.date || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return false;
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const todayInKorea = `${values.year}-${values.month}-${values.day}`;
+  return eventDate < todayInKorea;
+}
+
 function saveEvents(events) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(events));
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(events));
+  } catch {
+    const lightweightEvents = events.map((event) => ({ ...event, customPosterImage: "" }));
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(lightweightEvents));
+    } catch {
+      localStorage.removeItem(STORE_KEY);
+    }
+  }
 }
 
 async function fetchEventsFromDb() {
@@ -127,6 +163,33 @@ function getTheme(themeId) {
 
 function getPosterImage(posterImageId) {
   return posterImages.find((image) => image.id === posterImageId) || posterImages[0];
+}
+
+function getEventPoster(event) {
+  if (event.customPosterImage) {
+    return { id: "custom", name: "내 사진", src: event.customPosterImage };
+  }
+  return getPosterImage(event.posterImageId);
+}
+
+function getPosterCrop(event) {
+  const rawX = Number(event.posterPositionX);
+  const rawY = Number(event.posterPositionY);
+  const rawZoom = Number(event.posterZoom);
+  return {
+    x: Math.min(100, Math.max(0, Number.isFinite(rawX) ? rawX : 50)),
+    y: Math.min(100, Math.max(0, Number.isFinite(rawY) ? rawY : 50)),
+    zoom: Math.min(2.5, Math.max(1, Number.isFinite(rawZoom) && rawZoom > 0 ? rawZoom : 1))
+  };
+}
+
+function getPosterStyle(event) {
+  const crop = getPosterCrop(event);
+  return {
+    objectPosition: `${crop.x}% ${crop.y}%`,
+    transform: `scale(${crop.zoom})`,
+    transformOrigin: `${crop.x}% ${crop.y}%`
+  };
 }
 
 function getPosterWord(title) {
@@ -273,6 +336,7 @@ function HomeScreen({ events }) {
 function CreateScreen({ events, updateEvent }) {
   const [event, setEvent] = useState({ ...defaultEvent, code: uniqueCode(events), password: "", createdAt: new Date().toISOString() });
   const setField = (field, value) => setEvent((prev) => ({ ...prev, [field]: value }));
+  const setFields = (fields) => setEvent((prev) => ({ ...prev, ...fields }));
 
   const submit = (formEvent) => {
     formEvent.preventDefault();
@@ -288,7 +352,7 @@ function CreateScreen({ events, updateEvent }) {
 
   return h("main", { className: "create-shell" },
     h("form", { className: "composer-form", onSubmit: submit },
-      h(EditableInviteComposer, { event, setField }),
+      h(EditableInviteComposer, { event, setField, setFields }),
       h("section", { className: "composer-settings" },
         h("h2", null, "추가 설정"),
         h(Field, { label: "초대글" }, h("textarea", { value: event.description, onChange: (e) => setField("description", e.target.value), maxLength: 160 })),
@@ -309,15 +373,39 @@ function CreateScreen({ events, updateEvent }) {
   );
 }
 
-function EditableInviteComposer({ event, setField }) {
+function EditableInviteComposer({ event, setField, setFields }) {
   const theme = getTheme(event.themeId);
-  const posterImage = getPosterImage(event.posterImageId);
+  const posterImage = getEventPoster(event);
   const [isPosterPickerOpen, setIsPosterPickerOpen] = useState(false);
+  const [isPosterUploading, setIsPosterUploading] = useState(false);
   const previewGuests = [{ name: "서연", status: "yes", guests: 1 }, { name: "민수", status: "maybe", guests: 0 }];
   const counts = getCounts(previewGuests);
   const choosePoster = (posterImageId) => {
-    setField("posterImageId", posterImageId);
-    setIsPosterPickerOpen(false);
+    setFields({
+      posterImageId,
+      customPosterImage: "",
+      posterPositionX: 50,
+      posterPositionY: 50,
+      posterZoom: 1
+    });
+  };
+  const uploadPoster = async (file) => {
+    if (!file) return;
+    setIsPosterUploading(true);
+    try {
+      const customPosterImage = await compressPosterImage(file);
+      setFields({
+        posterImageId: "custom",
+        customPosterImage,
+        posterPositionX: 50,
+        posterPositionY: 50,
+        posterZoom: 1
+      });
+    } catch (error) {
+      alert(error.message || "사진을 불러오지 못했어요.");
+    } finally {
+      setIsPosterUploading(false);
+    }
   };
 
   return h("section", {
@@ -348,12 +436,32 @@ function EditableInviteComposer({ event, setField }) {
           h("textarea", { className: "composer-title-input", value: event.title, onChange: (e) => setField("title", e.target.value), maxLength: 36, rows: 2 })
         ),
         h("div", { className: "event-art-card poster-picker-card" },
-          h("img", { src: posterImage.src, alt: posterImage.name }),
+          h("img", { src: posterImage.src, alt: posterImage.name, style: getPosterStyle(event) }),
           h("button", { className: "poster-edit-button", type: "button", onClick: () => setIsPosterPickerOpen((open) => !open), "aria-label": "이미지 선택" }, "✎"),
           isPosterPickerOpen && h("div", { className: "poster-choice-popover" },
-            posterImages.map((image) =>
-              h("button", { type: "button", key: image.id, className: event.posterImageId === image.id ? "selected" : "", onClick: () => choosePoster(image.id), "aria-label": image.name },
-                h("img", { src: image.src, alt: image.name })
+            h("div", { className: "poster-choice-grid" },
+              posterImages.map((image) =>
+                h("button", { type: "button", key: image.id, className: !event.customPosterImage && event.posterImageId === image.id ? "selected" : "", onClick: () => choosePoster(image.id), "aria-label": image.name },
+                  h("img", { src: image.src, alt: image.name })
+                )
+              )
+            ),
+            h("label", { className: "poster-upload-control" },
+              h("input", { type: "file", accept: "image/jpeg,image/png,image/webp", disabled: isPosterUploading, onChange: (e) => uploadPoster(e.target.files && e.target.files[0]) }),
+              h("span", null, isPosterUploading ? "사진 줄이는 중..." : "+ 내 사진 추가")
+            ),
+            h("div", { className: "poster-adjust-controls" },
+              h("label", null,
+                h("span", null, "좌우"),
+                h("input", { type: "range", min: "0", max: "100", value: getPosterCrop(event).x, onChange: (e) => setField("posterPositionX", Number(e.target.value)) })
+              ),
+              h("label", null,
+                h("span", null, "상하"),
+                h("input", { type: "range", min: "0", max: "100", value: getPosterCrop(event).y, onChange: (e) => setField("posterPositionY", Number(e.target.value)) })
+              ),
+              h("label", null,
+                h("span", null, "확대"),
+                h("input", { type: "range", min: "1", max: "2.5", step: "0.05", value: getPosterCrop(event).zoom, onChange: (e) => setField("posterZoom", Number(e.target.value)) })
               )
             )
           )
@@ -440,7 +548,7 @@ function EventScreen({ event, updateEvent }) {
   };
 
   const theme = getTheme(event.themeId);
-  const posterImage = getPosterImage(event.posterImageId);
+  const posterImage = getEventPoster(event);
   const yesGuests = (event.rsvps || []).filter((rsvp) => rsvp.status === "yes");
   const totalGoing = counts.yes;
   const locationUrl = getLocationUrl(event);
@@ -468,7 +576,7 @@ function EventScreen({ event, updateEvent }) {
         h("p", { className: "event-kicker" }, event.subtitle || "초대합니다"),
         h("h1", null, event.title || "이름 없는 모임"),
         h("div", { className: "event-art-card" },
-          h("img", { src: posterImage.src, alt: posterImage.name })
+          h("img", { src: posterImage.src, alt: posterImage.name, style: getPosterStyle(event) })
         )
       ),
       h("section", { className: "event-info-stack" },
@@ -540,7 +648,7 @@ function InviteArrivalScreen({ event, onOpen }) {
 
 function CompactEventPreview({ event }) {
   const theme = getTheme(event.themeId);
-  const posterImage = getPosterImage(event.posterImageId);
+  const posterImage = getEventPoster(event);
   const previewEvent = { ...event, rsvps: [{ name: "가", status: "yes", guests: 0 }, { name: "나", status: "maybe", guests: 0 }] };
   const counts = getCounts(previewEvent.rsvps);
 
@@ -565,7 +673,7 @@ function CompactEventPreview({ event }) {
       h("section", { className: "event-hero" },
         h("p", { className: "event-kicker" }, event.subtitle || "초대합니다"),
         h("h1", null, event.title || "이름 없는 모임"),
-        h("div", { className: "event-art-card" }, h("img", { src: posterImage.src, alt: posterImage.name }))
+        h("div", { className: "event-art-card" }, h("img", { src: posterImage.src, alt: posterImage.name, style: getPosterStyle(event) }))
       ),
       h("section", { className: "event-info-stack" },
         h("div", { className: "event-date-block" }, h("strong", null, formatDate(event.date)), h("span", null, formatTime(event.time))),
@@ -743,6 +851,53 @@ async function copyText(text) {
   }
 }
 
+async function compressPosterImage(file) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("이미지 파일만 추가할 수 있어요.");
+  }
+  if (file.size > 15 * 1024 * 1024) {
+    throw new Error("15MB 이하 사진을 선택해 주세요.");
+  }
+
+  const image = await loadLocalImage(file);
+  const attempts = [
+    { maxEdge: 1080, quality: 0.76 },
+    { maxEdge: 820, quality: 0.66 }
+  ];
+
+  for (const attempt of attempts) {
+    const dataUrl = renderCompressedPoster(image, attempt.maxEdge, attempt.quality);
+    if (dataUrl.length <= 600000) return dataUrl;
+  }
+  throw new Error("사진 용량을 충분히 줄이지 못했어요. 더 작은 사진을 선택해 주세요.");
+}
+
+function loadLocalImage(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("이 사진 형식은 브라우저에서 열 수 없어요."));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function renderCompressedPoster(image, maxEdge, quality) {
+  const scale = Math.min(1, maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/webp", quality);
+}
+
 async function downloadStoryImage(event) {
   const blob = await createStoryBlob(event);
   const url = URL.createObjectURL(blob);
@@ -778,7 +933,7 @@ async function shareStoryImage(event) {
 
 async function createStoryBlob(event) {
   const theme = getTheme(event.themeId);
-  const posterImage = getPosterImage(event.posterImageId);
+  const posterImage = getEventPoster(event);
   const canvas = document.createElement("canvas");
   canvas.width = 1080;
   canvas.height = 1920;
@@ -791,7 +946,7 @@ async function createStoryBlob(event) {
       loadImage(posterImage.src)
     ]);
     drawCoverImage(ctx, backgroundImage, canvas.width, canvas.height);
-    drawStoryPoster(ctx, cardImage, 90, 580, 900, 470);
+    drawStoryPoster(ctx, cardImage, 90, 580, 900, 470, getPosterCrop(event));
   }
 
   const darkThemes = ["neon", "home", "serif"];
@@ -878,14 +1033,16 @@ function drawCoverImage(ctx, image, width, height) {
   ctx.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
-function drawStoryPoster(ctx, image, x, y, width, height) {
+function drawStoryPoster(ctx, image, x, y, width, height, crop) {
   ctx.save();
   roundRect(ctx, x, y, width, height, 30);
   ctx.clip();
-  const scale = Math.max(width / image.width, height / image.height);
+  const scale = Math.max(width / image.width, height / image.height) * crop.zoom;
   const drawWidth = image.width * scale;
   const drawHeight = image.height * scale;
-  ctx.drawImage(image, x + (width - drawWidth) / 2, y + (height - drawHeight) / 2, drawWidth, drawHeight);
+  const drawX = x - (drawWidth - width) * (crop.x / 100);
+  const drawY = y - (drawHeight - height) * (crop.y / 100);
+  ctx.drawImage(image, drawX, drawY, drawWidth, drawHeight);
   ctx.restore();
   ctx.strokeStyle = "rgba(255,255,255,0.72)";
   ctx.lineWidth = 3;
