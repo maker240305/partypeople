@@ -3,6 +3,9 @@ const h = React.createElement;
 
 const STORE_KEY = "party-people.events.v1";
 const LEGACY_STORE_KEY = "moidam.events.v1";
+const SUPABASE_URL = "https://ckgqawmbtqnpmdumamuv.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_6jMbCnxw2r0ahw-pkMZk5w_jQPHOoTx";
+const db = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY) : null;
 
 const themes = [
   { id: "neon", name: "Neon Night", label: "파티", titleFont: "'Black Han Sans', Pretendard, sans-serif", bodyFont: "Pretendard, sans-serif", palette: ["#12131f", "#fa3eaa", "#2ae8c8", "#f7f2df"], accent: "#fa3eaa", image: "assets/templates/neon-night.png", cssImage: "../assets/templates/neon-night.png", textColor: "#fff7df", className: "theme-neon" },
@@ -50,6 +53,45 @@ function saveEvents(events) {
   localStorage.setItem(STORE_KEY, JSON.stringify(events));
 }
 
+async function fetchEventsFromDb() {
+  return [];
+}
+
+async function fetchEventFromDb(code) {
+  if (!db || !code) return null;
+  const { data, error } = await db.rpc("party_get_event", { invite_code: code.toUpperCase() });
+  if (error) throw error;
+  return data || null;
+}
+
+async function createEventInDb(event) {
+  if (!db) return event;
+  const { data, error } = await db.rpc("party_create_event", { event_payload: event });
+  if (error) throw error;
+  return data || event;
+}
+
+async function submitRsvpInDb(code, rsvp) {
+  if (!db) return null;
+  const { data, error } = await db.rpc("party_submit_rsvp", { invite_code: code.toUpperCase(), rsvp_payload: rsvp });
+  if (error) throw error;
+  return data || null;
+}
+
+async function adminGetEventFromDb(code, password) {
+  if (!db) return null;
+  const { data, error } = await db.rpc("party_admin_get_event", { invite_code: code.toUpperCase(), admin_password: password });
+  if (error) throw error;
+  return data || null;
+}
+
+async function adminRemoveRsvpFromDb(code, password, name) {
+  if (!db) return null;
+  const { data, error } = await db.rpc("party_admin_remove_rsvp", { invite_code: code.toUpperCase(), admin_password: password, guest_name: name });
+  if (error) throw error;
+  return data || null;
+}
+
 function randomCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
@@ -87,12 +129,6 @@ function getPosterImage(posterImageId) {
   return posterImages.find((image) => image.id === posterImageId) || posterImages[0];
 }
 
-function getPosterImageByOffset(posterImageId, offset) {
-  const currentIndex = Math.max(0, posterImages.findIndex((image) => image.id === posterImageId));
-  const nextIndex = (currentIndex + offset + posterImages.length) % posterImages.length;
-  return posterImages[nextIndex];
-}
-
 function getPosterWord(title) {
   const words = String(title || "party").trim().split(/\s+/).filter(Boolean);
   return words.length > 0 ? words[0].slice(0, 8) : "party";
@@ -106,6 +142,11 @@ function getLocationUrl(event) {
   if (event.placeUrl) return event.placeUrl;
   const query = encodeURIComponent([event.placeName, event.address].filter(Boolean).join(" "));
   return `https://map.naver.com/p/search/${query || encodeURIComponent("파티 장소")}`;
+}
+
+function upsertEventList(events, nextEvent) {
+  const exists = events.some((event) => event.code === nextEvent.code);
+  return exists ? events.map((event) => event.code === nextEvent.code ? nextEvent : event) : [nextEvent, ...events];
 }
 
 function App() {
@@ -123,16 +164,65 @@ function App() {
   const screen = route.parts[0] || "";
   const code = route.parts[1] || "";
 
-  const updateEvent = (nextEvent) => {
-    setEvents((prev) => {
-      const exists = prev.some((event) => event.code === nextEvent.code);
-      return exists ? prev.map((event) => event.code === nextEvent.code ? nextEvent : event) : [nextEvent, ...prev];
-    });
+  useEffect(() => {
+    let alive = true;
+    fetchEventsFromDb()
+      .then((dbEvents) => {
+        if (alive && dbEvents.length > 0) setEvents(dbEvents);
+      })
+      .catch((error) => console.warn("Supabase list failed", error));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!code || (screen !== "e" && screen !== "admin")) return;
+    let alive = true;
+    fetchEventFromDb(code)
+      .then((dbEvent) => {
+        if (alive && dbEvent) setEvents((prev) => upsertEventList(prev, dbEvent));
+      })
+      .catch((error) => console.warn("Supabase event fetch failed", error));
+    return () => {
+      alive = false;
+    };
+  }, [screen, code]);
+
+  const updateEvent = (nextEvent, action = {}) => {
+    setEvents((prev) => upsertEventList(prev, nextEvent));
+
+    if (action.type === "create") {
+      createEventInDb(nextEvent)
+        .then((dbEvent) => setEvents((prev) => upsertEventList(prev, dbEvent)))
+        .catch((error) => console.warn("Supabase create failed", error));
+      return;
+    }
+
+    if (action.type === "rsvp" && action.rsvp) {
+      submitRsvpInDb(nextEvent.code, action.rsvp)
+        .then((dbEvent) => {
+          if (dbEvent) setEvents((prev) => upsertEventList(prev, dbEvent));
+        })
+        .catch((error) => console.warn("Supabase RSVP failed", error));
+    }
+  };
+
+  const adminGetEvent = async (adminCode, password) => {
+    const dbEvent = await adminGetEventFromDb(adminCode, password);
+    if (dbEvent) setEvents((prev) => upsertEventList(prev, dbEvent));
+    return dbEvent;
+  };
+
+  const adminRemoveRsvp = async (adminCode, password, name) => {
+    const dbEvent = await adminRemoveRsvpFromDb(adminCode, password, name);
+    if (dbEvent) setEvents((prev) => upsertEventList(prev, dbEvent));
+    return dbEvent;
   };
 
   if (screen === "create") return h(CreateScreen, { events, updateEvent });
   if (screen === "e") return h(EventScreen, { event: events.find((item) => item.code === code), updateEvent });
-  if (screen === "admin") return h(AdminScreen, { events, updateEvent, code });
+  if (screen === "admin") return h(AdminScreen, { events, updateEvent, code, adminGetEvent, adminRemoveRsvp });
   return h(HomeScreen, { events });
 }
 
@@ -192,7 +282,7 @@ function CreateScreen({ events, updateEvent }) {
     }
     const code = event.code.toUpperCase();
     sessionStorage.setItem(`partyPeople.skipArrival.${code}`, "1");
-    updateEvent({ ...event, code, rsvps: event.rsvps || [] });
+    updateEvent({ ...event, code, rsvps: event.rsvps || [] }, { type: "create" });
     navigate(`/e/${code}`);
   };
 
@@ -222,10 +312,12 @@ function CreateScreen({ events, updateEvent }) {
 function EditableInviteComposer({ event, setField }) {
   const theme = getTheme(event.themeId);
   const posterImage = getPosterImage(event.posterImageId);
+  const [isPosterPickerOpen, setIsPosterPickerOpen] = useState(false);
   const previewGuests = [{ name: "서연", status: "yes", guests: 1 }, { name: "민수", status: "maybe", guests: 0 }];
   const counts = getCounts(previewGuests);
-  const choosePoster = (offset) => {
-    setField("posterImageId", getPosterImageByOffset(event.posterImageId, offset).id);
+  const choosePoster = (posterImageId) => {
+    setField("posterImageId", posterImageId);
+    setIsPosterPickerOpen(false);
   };
 
   return h("section", {
@@ -257,8 +349,14 @@ function EditableInviteComposer({ event, setField }) {
         ),
         h("div", { className: "event-art-card poster-picker-card" },
           h("img", { src: posterImage.src, alt: posterImage.name }),
-          h("button", { className: "poster-arrow poster-arrow-left", type: "button", onClick: () => choosePoster(-1), "aria-label": "이전 이미지" }, "<"),
-          h("button", { className: "poster-arrow poster-arrow-right", type: "button", onClick: () => choosePoster(1), "aria-label": "다음 이미지" }, ">")
+          h("button", { className: "poster-edit-button", type: "button", onClick: () => setIsPosterPickerOpen((open) => !open), "aria-label": "이미지 선택" }, "✎"),
+          isPosterPickerOpen && h("div", { className: "poster-choice-popover" },
+            posterImages.map((image) =>
+              h("button", { type: "button", key: image.id, className: event.posterImageId === image.id ? "selected" : "", onClick: () => choosePoster(image.id), "aria-label": image.name },
+                h("img", { src: image.src, alt: image.name })
+              )
+            )
+          )
         )
       ),
       h("section", { className: "event-info-stack composer-info-stack" },
@@ -337,7 +435,7 @@ function EventScreen({ event, updateEvent }) {
     }
     const nextRsvp = { name: cleanName, status, guests: Number(guests) || 0, message: message.trim(), updatedAt: new Date().toISOString() };
     const nextRsvps = [nextRsvp, ...(event.rsvps || []).filter((rsvp) => rsvp.name !== cleanName)];
-    updateEvent({ ...event, rsvps: nextRsvps });
+    updateEvent({ ...event, rsvps: nextRsvps }, { type: "rsvp", rsvp: nextRsvp });
     alert("참석 여부가 저장됐어요.");
   };
 
@@ -493,20 +591,22 @@ function CompactEventPreview({ event }) {
   );
 }
 
-function AdminScreen({ events, updateEvent, code }) {
+function AdminScreen({ events, updateEvent, code, adminGetEvent, adminRemoveRsvp }) {
   const event = code ? events.find((item) => item.code === code) : null;
   const [inputCode, setInputCode] = useState(code || "");
   const [password, setPassword] = useState("");
   const [unlocked, setUnlocked] = useState(false);
 
-  const enter = (formEvent) => {
+  const enter = async (formEvent) => {
     formEvent.preventDefault();
-    const nextEvent = events.find((item) => item.code === inputCode.trim().toUpperCase());
+    const cleanCode = inputCode.trim().toUpperCase();
+    const dbEvent = adminGetEvent ? await adminGetEvent(cleanCode, password) : null;
+    const nextEvent = dbEvent || events.find((item) => item.code === cleanCode);
     if (!nextEvent) {
       alert("초대장을 찾을 수 없어요.");
       return;
     }
-    if (nextEvent.password !== password) {
+    if (!dbEvent && nextEvent.password !== password) {
       alert("비밀번호가 달라요.");
       return;
     }
@@ -526,7 +626,13 @@ function AdminScreen({ events, updateEvent, code }) {
   }
 
   const counts = getCounts(event.rsvps || []);
-  const removeRsvp = (name) => updateEvent({ ...event, rsvps: (event.rsvps || []).filter((rsvp) => rsvp.name !== name) });
+  const removeRsvp = (name) => {
+    const nextEvent = { ...event, rsvps: (event.rsvps || []).filter((rsvp) => rsvp.name !== name) };
+    updateEvent(nextEvent);
+    if (adminRemoveRsvp) {
+      adminRemoveRsvp(event.code, password, name).catch((error) => console.warn("Supabase RSVP remove failed", error));
+    }
+  };
 
   return h("main", { className: "app-shell admin-shell" },
     h(Header, { title: "관리자" }),
