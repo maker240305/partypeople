@@ -1,5 +1,6 @@
 import React from "react";
 import { ImageResponse } from "@vercel/og";
+const h = React.createElement;
 
 export const config = { runtime: "edge" };
 
@@ -63,9 +64,11 @@ export default async function handler(request) {
     : `${url.origin}/${posterPaths[event && event.posterImageId] || posterPaths["neon-birthday"]}`;
   const font = await getKoreanFont(`${title}${subtitle}${date}${place}${host}파티피플`);
 
+  const brandStyle = { display: "flex", fontSize: 30, fontWeight: 700, opacity: 0.86 };
+  const detailStyle = { display: "flex", fontSize: 28, lineHeight: 1.35, opacity: 0.9 };
   return new ImageResponse(
-    <div
-      style={{
+    h("div", {
+      style: {
         width: "100%",
         height: "100%",
         display: "flex",
@@ -73,36 +76,36 @@ export default async function handler(request) {
         color: "#fff7df",
         background: "linear-gradient(135deg, #18071d 0%, #10152a 52%, #06364a 100%)",
         fontFamily: "Noto Sans KR"
-      }}
-    >
-      <div style={{ display: "flex", flexDirection: "column", width: "54%", padding: "12px 34px 12px 4px" }}>
-        <div style={{ display: "flex", fontSize: 30, fontWeight: 700, opacity: 0.86 }}>파티피플</div>
-        <div style={{ display: "flex", marginTop: 62, fontSize: 30, fontWeight: 700, opacity: 0.8 }}>{subtitle}</div>
-        <div style={{ display: "flex", marginTop: 14, fontSize: 72, fontWeight: 700, lineHeight: 1.08 }}>{title}</div>
-        <div style={{ display: "flex", marginTop: "auto", flexDirection: "column", fontSize: 28, lineHeight: 1.35, opacity: 0.9 }}>
-          <div style={{ display: "flex" }}>{date}</div>
-          <div style={{ display: "flex" }}>{place}</div>
-          <div style={{ display: "flex", marginTop: 16, fontSize: 24, opacity: 0.72 }}>Hosted by {host}</div>
-        </div>
-      </div>
-      <div style={{ display: "flex", width: "46%", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ display: "flex", width: 486, height: 486, borderRadius: 28, overflow: "hidden", border: "3px solid rgba(255,255,255,0.54)", background: "#261529" }}>
-          <img
-            src={posterSource}
-            width="486"
-            height="486"
-            style={{
+      }
+    },
+      h("div", { style: { display: "flex", flexDirection: "column", width: "54%", padding: "12px 34px 12px 4px" } },
+        h("div", { style: brandStyle }, "파티피플"),
+        h("div", { style: { display: "flex", marginTop: 62, fontSize: 30, fontWeight: 700, opacity: 0.8 } }, subtitle),
+        h("div", { style: { display: "flex", marginTop: 14, fontSize: 72, fontWeight: 700, lineHeight: 1.08 } }, title),
+        h("div", { style: { display: "flex", marginTop: "auto", flexDirection: "column", gap: 4 } },
+          h("div", { style: detailStyle }, date),
+          h("div", { style: detailStyle }, place),
+          h("div", { style: { display: "flex", marginTop: 16, fontSize: 24, opacity: 0.72 } }, `Hosted by ${host}`)
+        )
+      ),
+      h("div", { style: { display: "flex", width: "46%", alignItems: "center", justifyContent: "center" } },
+        h("div", { style: { display: "flex", width: 486, height: 486, borderRadius: 28, overflow: "hidden", border: "3px solid rgba(255,255,255,0.54)", background: "#261529" } },
+          h("img", {
+            src: posterSource,
+            width: "486",
+            height: "486",
+            style: {
               width: "100%",
               height: "100%",
               objectFit: "cover",
               objectPosition: `${cropX}% ${cropY}%`,
               transform: `scale(${zoom})`,
               transformOrigin: `${cropX}% ${cropY}%`
-            }}
-          />
-        </div>
-      </div>
-    </div>,
+            }
+          })
+        )
+      )
+    ),
     {
       width: 1200,
       height: 630,
