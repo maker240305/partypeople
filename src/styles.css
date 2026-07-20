@@ -1695,7 +1695,8 @@ textarea:focus {
 
 @media (max-width: 560px) {
   .hero-copy h1 {
-    font-size: 48px;
+    font-size: clamp(28px, 9vw, 38px);
+    white-space: nowrap;
   }
 
   .hero-actions,
