@@ -303,7 +303,12 @@ function HomeScreen({ events }) {
 
   return h("main", { className: "app-shell home-shell" },
     h("section", { className: "home-hero" },
-      h("div", { className: "brand-row" }, h("div", { className: "brand-mark" }, "피"), h("span", null, "파티피플")),
+      h("div", { className: "brand-row" },
+        h("div", { className: "brand-mark brand-logo" },
+          h("img", { src: "assets/brand/party-people-logo.png", alt: "파티피플" })
+        ),
+        h("span", null, "파티피플")
+      ),
       h("div", { className: "hero-copy" },
         h("p", { className: "eyebrow" }, "친구들을 초대하세요!"),
         h("h1", null, "파티에 초대하세요!"),

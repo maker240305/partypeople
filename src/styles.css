@@ -88,6 +88,17 @@ button {
   font-size: 14px;
 }
 
+.brand-logo {
+  overflow: hidden;
+}
+
+.brand-logo img {
+  width: 238%;
+  height: 238%;
+  max-width: none;
+  object-fit: cover;
+}
+
 .hero-copy {
   width: min(720px, 100%);
 }
